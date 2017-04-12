@@ -26,6 +26,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.webcohesion.enunciate.EnunciateException;
 import com.webcohesion.enunciate.api.datatype.DataTypeReference;
 import com.webcohesion.enunciate.facets.FacetFilter;
+import com.webcohesion.enunciate.javac.decorations.element.DecoratedElement;
 import com.webcohesion.enunciate.javac.decorations.element.ElementUtils;
 import com.webcohesion.enunciate.javac.javadoc.JavaDoc;
 import com.webcohesion.enunciate.metadata.DocumentationExample;
@@ -34,6 +35,7 @@ import com.webcohesion.enunciate.modules.jackson.model.types.*;
 import com.webcohesion.enunciate.util.TypeHintUtils;
 
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -123,8 +125,16 @@ public class DataTypeExampleImpl extends ExampleImpl {
       String example = null;
       String example2 = null;
       JsonType exampleType = null;
+      TypeDefinition memberTypeDef = null;
 
+      TypeMirror memberType = member.asType();
+      if (memberType instanceof DeclaredType) {
+        memberTypeDef = type.getContext().findTypeDefinition(((DeclaredType)memberType).asElement());
+      }
       JavaDoc.JavaDocTagList tags = member.getJavaDoc().get("documentationExample");
+      if (tags == null && memberTypeDef != null) {
+        tags = memberTypeDef.getJavaDoc().get("documentationExample");
+      }
       if (tags != null && tags.size() > 0) {
         String tag = tags.get(0).trim();
         example = tag.isEmpty() ? null : tag;
@@ -136,6 +146,12 @@ public class DataTypeExampleImpl extends ExampleImpl {
       }
 
       tags = member.getJavaDoc().get("documentationType");
+      if (tags == null && memberTypeDef != null) {
+        tags = memberTypeDef.getJavaDoc().get("documentationType");
+      }
+      if (tags == null && member.getTypeDefinition() != null && member.getTypeDefinition().getDelegate() instanceof DecoratedElement) {
+        tags = ((DecoratedElement<?>)member.getTypeDefinition().getDelegate()).getJavaDoc().get("documentationType");
+      }
       if (tags != null && tags.size() > 0) {
         String tag = tags.get(0).trim();
         if (!tag.isEmpty()) {
@@ -150,6 +166,9 @@ public class DataTypeExampleImpl extends ExampleImpl {
       }
 
       DocumentationExample documentationExample = member.getAnnotation(DocumentationExample.class);
+      if (documentationExample == null && memberTypeDef != null) {
+        documentationExample = memberTypeDef.getAnnotation(DocumentationExample.class);
+      }
       if (documentationExample != null) {
         if (documentationExample.exclude()) {
           continue;
